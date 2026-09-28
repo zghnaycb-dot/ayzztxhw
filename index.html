@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>户外出行排版工具</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system,"Microsoft YaHei","PingFanning SC",sans-serif; margin: 0; padding: 0; background: #f5f6f8; color: #222; line-height: 1.5; }
+
+  /* 保存状态栏 */
+  #saveBar { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; padding: 6px 16px; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 8px; }
+  #saveBar.ok { background: #2e8b57; }
+  #saveBar.err { background: #c0392b; }
+  #saveBar.info { background: #3498db; }
+  .saveIcon { font-size: 16px; }
+  .saveClose { margin-left: auto; cursor: pointer; padding: 2px 8px; background: rgba(255,255,255,.2); border-radius: 10px; }
+
+  /* 顶部 */
+  .app-header { background: #2e8b57; color: #fff; padding: 12px 16px 8px; }
+  .app-header h1 { margin: 0 0 2px; font-size: 18px; }
+  .app-header p { margin: 0; font-size: 12px; opacity: .85; }
+
+  /* 底部操作栏 */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e0e0e0; display: flex; padding: 8px 12px; gap: 8px; box-shadow: 0 -2px 8px rgba(0,0,0,.1); z-index: 100; }
+
+  /* 手机端标签切换 */
+  .tabs { display: flex; background: #fff; border-bottom: 2px solid #e8e8e8; overflow-x: auto; -webkit-overflow-scrolling: touch; position: sticky; top: 0; z-index: 90; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .tab { flex: 0 0 auto; padding: 10px 14px; font-size: 14px; color: #666; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab.active { color: #2e8b57; border-bottom-color: #2e8b57; font-weight: 600; }
+  .tab:active { background: #f0f0f0; }
+
+  /* 内容区 */
+  .page { display: none; padding: 12px 14px 80px; }
+  .page.active { display: block; }
+
+  /* 通用卡片 */
+  .card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card-title { font-size: 15px; font-weight: 700; color: #2e8b57; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid #e8f5ee; }
+  .card-title.blue { color: #1a4a8a; border-bottom-color: #e8edf5; }
+  .card-title.orange { color: #e67e22; border-bottom-color: #fef3e2; }
+
+  /* 标签 */
+  .tag { display: inline-block; background: #e8f5ee; color: #2e8b57; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin-left: 6px; }
+  .tag2 { display: inline-block; background: #fff3cd; color: #856404; border-radius: 20px; padding: 2px 10px; font-size: 12px; margin-left: 6px; }
+
+  /* 表单 */
+  label { display: inline-block; font-size: 13px; color: #444; margin: 8px 8px 4px 0; }
+  input[type=text], input[type=number], input[type=tel], textarea, select {
+    border: 1px solid #cfd4da; border-radius: 8px; padding: 8px 10px; font-size: 15px; font-family: inherit; width: 100%;
+    background: #fafbfc;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #2e8b57; background: #fff; }
+  input.sm { width: 80px; flex-shrink: 0; }
+  input.ssm { width: 60px; flex-shrink: 0; font-size: 15px; }
+  textarea { resize: vertical; min-height: 80px; }
+  select { font-size: 15px; padding: 8px 10px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  @media (max-width: 400px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* 按钮 */
+  button { border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-family: inherit; cursor: pointer; }
+  button:active { transform: scale(.97); }
+  button.primary { background: #2e8b57; color: #fff; }
+  button.secondary { background: #6c757d; color: #fff; }
+  button.danger { background: #c0392b; color: #fff; }
+  button.outline { background: #fff; color: #2e8b57; border: 1.5px solid #2e8b57; }
+  button.small { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+  button.small.green { background: #e8f5ee; color: #2e8b57; border: 1px solid #b2d9c6; }
+  button.small.red { background: #fde8e8; color: #c0392b; border: 1px solid #f5baba; }
+  button.small.blue { background: #e8edf5; color: #3a5a9b; border: 1px solid #b8c8e0; }
+  button.full { width: 100%; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+
+  /* 名单表格 */
+  .entry-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  .entry-table th { background: #f0f3f5; font-size: 12px; padding: 6px 6px; text-align: left; border-bottom: 2px solid #e0e0e0; color: #666; }
+  .entry-table td { padding: 4px 4px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .entry-table input { font-size: 14px; padding: 6px 8px; border-radius: 6px; }
+  .entry-table .op { white-space: nowrap; }
+
+  /* 上车点 */
+  .loc-item { background: #f9fafb; border: 1px solid #e8eaed; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .loc-item-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .loc-name { font-weight: 700; font-size: 14px; min-width: 100px; }
+  .loc-times { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .loc-times span { font-size: 12px; color: #888; }
+  .loc-times input { width: 70px; font-size: 15px; padding: 5px 8px; }
+  .loc-actions { display: flex; gap: 6px; margin-left: auto; }
+
+  /* 车辆选择 */
+  .bus-radio { display: flex; gap: 8px; flex-wrap: wrap; }
+  .bus-radio label { margin: 0; cursor: pointer; }
+  .bus-radio input { width: auto; margin: 0; }
+  .bus-config { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .bus-config .bus-box { background: #f9fafb; border-radius: 8px; padding: 10px 12px; min-width: 160px; flex: 1; }
+  .bus-config .bus-box h4 { margin: 0 0 6px; font-size: 14px; }
+  .bus-config .bus-box.b1 h4 { color: #2e8b57; }
+  .bus-config .bus-box.b2 h4 { color: #1a4a8a; }
+  .bus-config .bus-box.b3 h4 { color: #7b3a8c; }
+
+  /* 底部固定按钮 */
+  .gen-btn { background: #2e8b57; color: #fff; font-size: 16px; padding: 12px; width: 100%; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; }
+  .gen-btn:active { background: #247048; }
+
+  /* 输出区 */
+  .out { background: #fffbe9; font-family: 'Courier New', monospace; font-size: 13px; white-space: pre-wrap; width: 100%; border: none; border-radius: 8px; padding: 10px; resize: none; }
+  .out-box { margin-bottom: 10px; }
+
+  /* 分割线 */
+  hr { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+
+  /* 提示 */
+  .hint { font-size: 12px; color: #999; margin: 4px 0; }
+
+  /* 总计 */
+  .total-bar { background: #e8f5ee; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* 手机兼容 */
+  @media (max-width: 600px) {
+    .desktop-only { display: none; }
+    .mobile-stack { flex-direction: column; }
+    .entry-table { font-size: 15px; }
+    .entry-table input { font-size: 16px; }
+    select { font-size: 16px; }
+    input[type=text], input[type=number], textarea { font-size: 16px; }
+    .entry-table td, .entry-table th { padding: 6px 6px; }
+    button { min-height: 40px; }
+    button.small { min-height: 34px; }
+    .entry-table .op button { min-height: 34px; min-width: 34px; }
+  }
+
+  /* 桌面端：隐藏手机标签栏/底栏，所有板块纵向平铺 */
+  @media (min-width: 601px) {
+    .desktop-hidden { display: none !important; }
+    .page { display: block !important; padding: 12px 14px 40px; }
+    .app-header { padding: 16px 20px 12px; }
+  }
+
+  /* 导出/导入 */
+  .io-section { background: #fff; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+  .io-section h3 { margin: 0 0 8px; font-size: 14px; color: #555; }
+</style>
+</head>
+<body>
+
+<!-- 保存状态栏 -->
+<div id="saveBar" class="info" style="display:none">
+  <span class="saveIcon" id="saveIcon">⏳</span>
+  <span id="saveMsg">检查中...</span>
+  <span class="saveClose" onclick="hideSaveBar()">×</span>
+</div>
+
+<!-- 顶部 -->
+<div class="app-header">
+  <h1>🏔️ 户外出行排版工具</h1>
+  <p>只填姓名/上车点/人数，自动生成报名·时间表·座次表 &nbsp;|&nbsp; 数据自动保存</p>
+</div>
+
+<!-- 手机端标签 -->
+<div class="tabs desktop-hidden" id="tabs">
+  <div class="tab active" onclick="showTab('info')">📋活动</div>
+  <div class="tab" onclick="showTab('list')">👥名单</div>
+  <div class="tab" onclick="showTab('loc')">🚏上车点</div>
+  <div class="tab" onclick="showTab('time')">⏰时间</div>
+  <div class="tab" onclick="showTab('out')">📄生成</div>
+</div>
+
+<!-- ===== ① 活动信息 ===== -->
+<div class="page active" id="page-info">
+<div class="card">
+  <div class="card-title">① 活动信息（每次出行填一次）</div>
+  <div class="grid2">
+    <div><label>出行日期</label><input id="f_date" value="9月27日（周日）" placeholder="如：10月5日（周六）"></div>
+    <div><label>路线</label><input id="f_route" value="三道庄-手扒岩-天门洞-三县脑-八戒洞-四道庄" placeholder="路线名称"></div>
+    <div><label>拔高</label><input id="f_up" value="拔高五百左右" placeholder="如：拔高600"></div>
+    <div><label>里程</label><input id="f_km" value="行程十一二公里" placeholder="如：约10公里"></div>
+    <div style="grid-column:1/-1"><label>费用说明</label><input id="f_fee" value="经典小环线。费用AA，根据车辆大小确定。" placeholder="费用说明"></div>
+    <div><label>限报人数</label><input id="f_limit" type="number" class="sm" value="58" placeholder="58"></div>
+    <div><label>报名/带车电话</label><input id="f_phone" class="sm" value="" placeholder="手机号"></div>
+  </div>
+</div>
+
+<!-- 车辆设置 -->
+<div class="card">
+  <div class="card-title blue">🚌 车辆设置</div>
+  <div class="bus-radio">
+    <label><input type="radio" name="busCount" value="1" checked onchange="busCountChange(1)"> 1辆</label>
+    <label><input type="radio" name="busCount" value="2" onchange="busCountChange(2)"> 2辆</label>
+    <label><input type="radio" name="busCount" value="3" onchange="busCountChange(3)"> 3辆</label>
+  </div>
+  <div class="bus-config" id="busConfig">
+    <div class="bus-box b1">
+      <h4>🚐 1号车</h4>
+      <label>车号</label><input id="bus1_car" value="豫EA5022" placeholder="如：豫EXX123">
+      <label>司机电话</label><input id="bus1_driver" value="" placeholder="手机号">
+    </div>
+    <div class="bus-box b2" id="bus2Box" style="display:none">
+      <h4>🚐 2号车</h4>
+      <label>车号</label><input id="bus2_car" placeholder="车号">
+      <label>司机电话</label><input id="bus2_driver" placeholder="手机号">
+    </div>
+    <div class="bus-box b3" id="bus3Box" style="display:none">
+      <h4>🚐 3号车</h4>
+      <label>车号</label><input id="bus3_car" placeholder="车号">
+      <label>司机电话</label><input id="bus3_driver" placeholder="手机号">
+    </div>
+  </div>
+</div>
+
+<!-- 免责声明 -->
+<div class="card">
+  <label style="margin-top:0">免责声明</label>
+  <textarea id="f_disclaim" rows="4">本群为纯自愿结伴户外团体，非旅行社，无组织者，无盈利，所有出行一律AA制。凡参加活动人员，出行自愿，来去自由。户外登山存在山路、天气、摔伤、磕碰，蛇虫叮咬等不可预知风险，所有安全责任个人自行承担。同行队友只做相互帮助，不承担任何人身与法律责任。
+报名即代表本人认可此条款，身体健康，无基础疾病，量力而行。介意者请勿参与。
+本群只寻坦荡同路人，不谈是非，不算心机，只为山水相逢。</textarea>
+</div>
+
+<!-- 温馨提示 -->
+<div class="card">
+  <label style="margin-top:0">温馨提示</label>
+  <textarea id="f_tips" rows="4">秋高气爽，温度适宜，但早晚温差大，合理穿衣，紫外线强，注意防晒。登山鞋，双肩包，登山杖，护膝必备。自带饭，带充足的水。
+A费出行，没有特例和特权，每个人都是独立的个体，都是出行团队的维护者和执行者，遵守规则，有团队意识，务必做到：准时准点上车，在车上维护车厢环境，返程不迟到，提前抵达车跟。出行途中互相帮扶，不谩骂，不挤兑；有事不能出行自行替补或补A。</textarea>
+</div>
+</div>
+
+<!-- ===== ② 名单 ===== -->
+<div class="page" id="page-list">
+<div class="card">
+  <div class="card-title">② 录入名单 <span id="counter" class="tag">共 0 人 / 0 队</span>
+    <span id="busHint" class="tag2" style="display:none"></span>
+  </div>
+  <p class="hint">每行：姓名·上车点·人数（可空默认1）。支持批量粘贴，格式：<code>菲菲,检察院东门</code> 或 <code>金成,游泳馆,2</code></p>
+
+  <div class="total-bar" id="busBar" style="display:none">
+    <span>🚐 自动分车：约 <b id="perBus">0</b> 人/车</span>
+  </div>
+
+  <div class="btn-row">
+    <button class="small green" onclick="addRow()">＋ 添加一行</button>
+    <button class="small blue" onclick="loadExample()">填入示例（55人）</button>
+    <button class="small red" onclick="clearParts()">清空名单</button>
+  </div>
+
+  <div id="entryList"></div>
+
+  <hr>
+  <label>批量粘贴（每行一条，自动加入名单）</label>
+  <textarea id="bulk" rows="4" placeholder="菲菲,检察院东门&#10;金成,游泳馆,2&#10;平安是福3人,美丽华,3" style="font-size:14px"></textarea>
+  <button class="small blue" onclick="parseBulk()" style="margin-top:6px">解析并加入名单</button>
+</div>
+</div>
+
+<!-- ===== ③ 上车点 ===== -->
+<div class="page" id="page-loc">
+<div class="card">
+  <div class="card-title orange">③ 上车点管理（可自由增删改）</div>
+  <p class="hint">删除上车点不影响名单里的人，只是不出现在时间表里。</p>
+  <div class="btn-row">
+    <button class="small green" onclick="addLoc()">＋ 添加上车点</button>
+    <button class="small red" onclick="clearUnusedLocs()">删除未分配的点</button>
+    <span class="hint" style="margin:auto 0">共 <b id="locCount2">0</b> 个</span>
+  </div>
+  <div id="locMgr"></div>
+</div>
+</div>
+
+<!-- ===== ④ 时间 ===== -->
+<div class="page" id="page-time">
+<div class="card">
+  <div class="card-title blue">④ 上车时间表</div>
+  <p class="hint" id="timeHint">每辆车的发车时间，不同车可以不同时间</p>
+  <div id="timeByBus"></div>
+</div>
+</div>
+
+<!-- ===== ⑤ 生成 ===== -->
+<div class="page" id="page-out">
+<div class="card">
+  <div class="card-title">⑤ 一键生成</div>
+  <button class="gen-btn" onclick="generate()">⚡ 生成三份文案</button>
+  <div class="btn-row" style="margin-top:10px">
+    <button class="outline full" onclick="copyAll()">📋 复制全部</button>
+  </div>
+</div>
+
+<div class="out-box">
+  <div class="card-title" style="display:flex;align-items:center;gap:6px">📋 报名帖 <span class="hint">（发群里收人）</span></div>
+  <textarea id="out_reg" class="out" rows="8" readonly onclick="this.select()"></textarea>
+  <button class="small outline" onclick="copy('out_reg')">复制</button>
+</div>
+
+<div class="out-box">
+  <div class="card-title" style="display:flex;align-items:center;gap:6px">🚌 出行帖 <span class="hint">（出发前发：时间表+座次）</span></div>
+  <textarea id="out_go" class="out" rows="10" readonly onclick="this.select()"></textarea>
+  <button class="small outline" onclick="copy('out_go')">复制</button>
+</div>
+
+<div class="out-box">
+  <div class="card-title" style="display:flex;align-items:center;gap:6px">💺 座次表 <span class="hint">（单独发）</span></div>
+  <textarea id="out_seat" class="out" rows="6" readonly onclick="this.select()"></textarea>
+  <button class="small outline" onclick="copy('out_seat')">复制</button>
+</div>
+</div>
+
+<!-- 导出导入 -->
+<div class="page" id="page-data">
+<div class="card">
+  <div class="card-title">📦 数据备份</div>
+  <p class="hint">如果自动保存不生效（如浏览器隐私模式），可以用下面的方式手动备份。</p>
+  <div class="btn-row">
+    <button class="small blue" onclick="exportData()">📤 导出JSON</button>
+    <button class="small green" onclick="document.getElementById('importFile').click()">📥 导入JSON</button>
+    <input type="file" id="importFile" accept=".json,.txt" style="display:none" onchange="importData(this.files[0])">
+  </div>
+  <button class="small red" onclick="clearAllData()" style="margin-top:8px">🗑️ 清除所有数据</button>
+</div>
+</div>
+
+<!-- 底部生成按钮（手机） -->
+<div class="bottom-bar desktop-hidden">
+  <button class="primary" style="flex:1;font-size:16px;padding:12px" onclick="generate();showTab('out')">⚡ 生成文案</button>
+  <button class="secondary" style="flex:1;font-size:16px;padding:12px" onclick="copyAll()">📋 复制</button>
+</div>
+
+<script>
+// ==============================
+//  状态
+// ==============================
+var parts = [];   // {name,loc,count,bus}  bus:0=auto
+var locs  = [];   // [{name,times:{1:"6:00",2:"6:03"}}]
+var busCount = 1;
+
+// 示例
+var EXAMPLE = [
+["队员1","游泳馆",1],["队员2","游泳馆",1],["队员3","游泳馆",1],["队员4","游泳馆",1],["队员5","游泳馆",1],["队员6","游泳馆",2],
+  ["队员7","太行路口",1],
+  ["队员8","工贸",2],["队员9","工贸",1],["队员10","工贸",1],
+  ["队员11","斜铁道",1],["队员12","斜铁道",2],
+  ["队员13","文峰塔",1],
+  ["队员14","中山街口",2],
+  ["队员15","教委",1],["队员16","教委",2],["队员17","教委",1],
+  ["队员18","美丽华",1],["队员19","美丽华",1],["队员20","美丽华",2],["队员21","美丽华",3],["队员22","美丽华",1],["队员23","美丽华",2],["队员24","美丽华",1],["队员25","美丽华",1],["队员26","美丽华",1],
+  ["队员27","华珍国际",1],
+  ["队员28","红旗渠广场",1],
+  ["队员29","人中路口",1],
+  ["队员30","易园西门",1],["队员31","易园西门",2],
+  ["队员32","检察院东门",1],["队员33","检察院东门",1],
+  ["队员34","义乌3号门",1],["队员35","义乌3号门",1],["队员36","义乌3号门",1],
+  ["队员37","居然之家",2],["队员38","居然之家",4],
+  ["队员39","文昌大道中华路口",1],["队员40","文昌大道中华路口",1],
+  ["队员41","黄河南路中华路",1]
+];
+var EX_TIMES = {
+  "游泳馆":{"1":"6:00"},"太行路口":{"1":"6:02"},"工贸":{"1":"6:05"},
+  "斜铁道":{"1":"6:10"},"文峰塔":{"1":"6:14"},"中山街口":{"1":"6:16"},
+  "教委":{"1":"6:18"},"美丽华":{"1":"6:25"},"华珍国际":{"1":"6:27"},
+  "红旗渠广场":{"1":"6:30"},"人中路口":{"1":"6:32"},"易园西门":{"1":"6:35"},
+  "检察院东门":{"1":"6:37"},"义乌3号门":{"1":"6:43"},"居然之家":{"1":"6:45"},
+  "文昌大道中华路口":{"1":"6:48"},"黄河南路中华路":{"1":"6:53"}
+};
+
+// ==============================
+//  工具
+// ==============================
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function suggestTime(idx){ var m=idx*2;var h=6+Math.floor(m/60);m=m%60;return pad(h)+':'+pad(m); }
+function pad(n){ return String(n).padStart(2,'0'); }
+function getBusColor(b){ return ['#555','#2e8b57','#1a4a8a','#7b3a8c'][b]||'#555'; }
+function getBusName(b){ return b+'号车'; }
+
+// ==============================
+//  保存/加载（localStorage + 文件备份）
+// ==============================
+var SAVE_KEY = 'outdoor_tool_v3';
+
+function getField(id, fallback){
+  var el=$(id);
+  return el ? el.value : (fallback||'');
+}
+function setField(id, val){
+  var el=$(id);
+  if(el) el.value = (val||'');
+}
+
+function saveData(){
+  var data = {
+    parts: parts,
+    locs:  locs,
+    busCount: busCount,
+    f_date:    getField('f_date'),
+    f_route:  getField('f_route'),
+    f_up:      getField('f_up'),
+    f_km:      getField('f_km'),
+    f_fee:     getField('f_fee'),
+    f_limit:   getField('f_limit'),
+    f_phone:   getField('f_phone'),
+    f_disclaim:getField('f_disclaim'),
+    f_tips:    getField('f_tips'),
+    bus1_car:    getField('bus1_car'),
+    bus1_driver: getField('bus1_driver'),
+    bus2_car:    getField('bus2_car'),
+    bus2_driver: getField('bus2_driver'),
+    bus3_car:    getField('bus3_car'),
+    bus3_driver: getField('bus3_driver'),
+    _saved: Date.now()
+  };
+  try {
+    var json = JSON.stringify(data);
+    localStorage.setItem(SAVE_KEY, json);
+    showBar('已保存到本设备 ✓（关闭再打开，数据仍在）', 'ok');
+    return true;
+  } catch(e){
+    showBar('自动保存失败: '+e.message+'，请用「导出JSON」手动备份', 'err');
+    return false;
+  }
+}
+
+function loadData(){
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if(!raw){ showBar('欢迎使用！开始填数据吧 ↓', 'info'); return false; }
+    var d = JSON.parse(raw);
+    if(!d || !Array.isArray(d.parts)){
+      showBar('数据格式异常，已重新开始', 'err');
+      return false;
+    }
+    parts = d.parts || [];
+    locs  = d.locs  || [];
+    busCount = d.busCount || 1;
+    setField('f_date',    d.f_date);
+    setField('f_route',   d.f_route);
+    setField('f_up',      d.f_up);
+    setField('f_km',      d.f_km);
+    setField('f_fee',     d.f_fee);
+    setField('f_limit',   d.f_limit);
+    setField('f_phone',   d.f_phone);
+    setField('f_disclaim',d.f_disclaim);
+    setField('f_tips',    d.f_tips);
+    setField('bus1_car',   d.bus1_car);
+    setField('bus1_driver', d.bus1_driver);
+    setField('bus2_car',   d.bus2_car);
+    setField('bus2_driver', d.bus2_driver);
+    setField('bus3_car',   d.bus3_car);
+    setField('bus3_driver', d.bus3_driver);
+
+    // 同步 radio
+    var radios = document.getElementsByName('busCount');
+    for(var i=0;i<radios.length;i++){
+      radios[i].checked = (parseInt(radios[i].value) === busCount);
+    }
+    busCountChange(busCount);
+    var age = Math.round((Date.now()-d._saved)/60000);
+    if(age<1) showBar('已恢复上次数据 ✓', 'ok');
+    else if(age<60) showBar('已恢复（'+age+'分钟前保存）', 'ok');
+    else showBar('已恢复上次数据（'+Math.round(age/60)+'小时前）', 'ok');
+    return true;
+  } catch(e){
+    showBar('读取数据失败: '+e.message+'，请尝试重新开始', 'err');
+    return false;
+  }
+}
+
+function exportData(){
+  var data = {
+    parts: parts, locs: locs, busCount: busCount,
+    f_date:    getField('f_date'),
+    f_route:  getField('f_route'),
+    f_up:      getField('f_up'),
+    f_km:      getField('f_km'),
+    f_fee:     getField('f_fee'),
+    f_limit:   getField('f_limit'),
+    f_phone:   getField('f_phone'),
+    f_disclaim:getField('f_disclaim'),
+    f_tips:    getField('f_tips'),
+    bus1_car:    getField('bus1_car'),
+    bus1_driver: getField('bus1_driver'),
+    bus2_car:    getField('bus2_car'),
+    bus2_driver: getField('bus2_driver'),
+    bus3_car:    getField('bus3_car'),
+    bus3_driver: getField('bus3_driver'),
+    _saved: Date.now()
+  };
+  var blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = '出行名单_'+getField('f_date').replace(/[^\d]/g,'')+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showBar('已导出JSON文件，下次用「导入JSON」恢复', 'ok');
+}
+
+function importData(file){
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      var d = JSON.parse(e.target.result);
+      parts = d.parts||[]; locs = d.locs||[]; busCount = d.busCount||1;
+      setField('f_date',d.f_date); setField('f_route',d.f_route);
+      setField('f_up',d.f_up); setField('f_km',d.f_km); setField('f_fee',d.f_fee);
+      setField('f_limit',d.f_limit); setField('f_phone',d.f_phone);
+      setField('f_disclaim',d.f_disclaim); setField('f_tips',d.f_tips);
+      setField('bus1_car',d.bus1_car); setField('bus1_driver',d.bus1_driver);
+      setField('bus2_car',d.bus2_car); setField('bus2_driver',d.bus2_driver);
+      setField('bus3_car',d.bus3_car); setField('bus3_driver',d.bus3_driver);
+      var radios=document.getElementsByName('busCount');
+      for(var i=0;i<radios.length;i++) radios[i].checked=(parseInt(radios[i].value)===busCount);
+      busCountChange(busCount);
+      refreshAll();
+      saveData();
+      showBar('导入成功 ✓ 共'+parts.length+'条名单', 'ok');
+    } catch(e2){ showBar('导入失败: '+e2.message, 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData(){
+  if(!confirm('确定清除所有数据？（名单、上车点、活动信息全部清空）')) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+// ==============================
+//  保存状态条
+// ==============================
+var barTimer = null;
+function showBar(msg, cls){
+  var bar = $('saveBar');
+  bar.className = cls;
+  $('saveMsg').textContent = msg;
+  $('saveIcon').textContent = cls==='ok'?'✓':cls==='err'?'✗':'ⓘ';
+  bar.style.display = 'flex';
+  clearTimeout(barTimer);
+  barTimer = setTimeout(function(){ bar.style.display='none'; }, 4000);
+}
+function hideSaveBar(){
+  $('saveBar').style.display='none';
+  clearTimeout(barTimer);
+}
+
+// ==============================
+//  Tab 切换（手机）
+// ==============================
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  var tab = document.querySelector('.tab[onclick*="'+id+'"]');
+  if(tab) tab.classList.add('active');
+  var page = $('page-'+id);
+  if(page) page.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ==============================
+//  车辆数切换
+// ==============================
+function busCountChange(n){
+  busCount = n;
+  $('bus2Box').style.display = n>=2 ? '' : 'none';
+  $('bus3Box').style.display = n>=3 ? '' : 'none';
+  // 更新上车点的 times
+  locs.forEach(function(loc){ for(var b=1;b<=busCount;b++){ if(!loc.times[b]) loc.times[b]=loc.times[1]||suggestTime(0); }});
+  // 补充新的上车点
+  syncLocsFromParts();
+  refreshAll();
+  saveData();
+}
+
+function syncLocsFromParts(){
+  var seen={};
+  locs.forEach(function(l){ seen[l.name]=true; });
+  var newCount=0;
+  parts.forEach(function(p){
+    var n=p.loc||'(未填上车点)';
+    if(!seen[n]){ seen[n]=true; newCount++;
+      var newLoc={name:n,times:{}};
+      for(var b=1;b<=busCount;b++) newLoc.times[b]=suggestTime(locs.length*2+(b-1)*5);
+      locs.push(newLoc);
+    }
+  });
+  return newCount;
+}
+
+// ==============================
+//  名单渲染
+// ==============================
+function refreshAll(){
+  renderEntryList();
+  renderLocMgr();
+  renderTimeByBus();
+  updateBusHint();
+}
+
+function renderEntryList(){
+  var box=$('entryList');
+  if(parts.length===0){
+    box.innerHTML='<p class=&quot;hint&quot; style=&quot;padding:12px 0;text-align:center&quot;>名单为空，点上方「＋添加一行」开始</p>';
+    return;
+  }
+  var html='<table class="entry-table"><thead><tr>';
+  html+='<th style="width:36px">#</th>';
+  html+='<th>姓名/队名</th>';
+  html+='<th style="width:120px">上车点</th>';
+  html+='<th style="width:48px">人数</th>';
+  if(busCount>1) html+='<th style="width:64px">车辆</th>';
+  html+='<th class="op" style="width:100px">操作</th></tr></thead><tbody>';
+  parts.forEach(function(p,i){
+    var busSel='';
+    if(busCount>1){
+      busSel='<select data-i="'+i+'" onchange="chgBus(this)" style="font-size:12px;padding:4px;border-radius:4px;width:58px">';
+      busSel+='<option value="0" '+(p.bus===0?'selected':'')+'>自动</option>';
+      for(var b=1;b<=busCount;b++) busSel+='<option value="'+b+'" '+(p.bus===b?'selected':'')+'>'+b+'车</option>';
+      busSel+='</select>';
+    }
+    html+='<tr>';
+    html+='<td style="color:#aaa;font-size:12px;text-align:center">'+p._n+'</td>';
+    html+='<td><input value="'+esc(p.name)+'" data-i="'+i+'" data-f="name" onchange="chgField(this)" style="font-size:14px;padding:6px 6px"></td>';
+    html+='<td><input value="'+esc(p.loc)+'" data-i="'+i+'" data-f="loc" onchange="chgFieldLoc(this)" style="font-size:14px;padding:6px 4px"></td>';
+    html+='<td><input type="number" min="1" value="'+p.count+'" data-i="'+i+'" data-f="count" onchange="chgField(this)" style="width:44px;padding:6px 4px;font-size:14px"></td>';
+    if(busCount>1) html+='<td>'+busSel+'</td>';
+    html+='<td class="op"><button class="small green" onclick="moveUp(\'+i+\')" style="padding:4px 8px">↑</button><button class="small green" onclick="moveDn(\'+i+\')" style="padding:4px 8px">↓</button><button class="small red" onclick="delRow(\'+i+\')" style="padding:4px 8px">×</button></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  box.innerHTML=html;
+  // 编号（_n用于显示）
+  var n2=1;
+  parts.forEach(function(p,i){ p._n=n2; n2+=p.count||1; });
+}
+
+function chgField(el){
+  var i=+el.dataset.i, f=el.dataset.f, v=el.value;
+  if(f==='count') v=Math.max(1,parseInt(v)||1);
+  parts[i][f]=v;
+  renderEntryList(); updateBusHint(); saveData();
+}
+
+function chgFieldLoc(el){
+  var i=+el.dataset.i, nv=el.value.trim();
+  parts[i].loc=nv;
+  syncLocsFromParts();
+  renderEntryList(); renderLocMgr(); renderTimeByBus(); updateBusHint(); saveData();
+}
+
+function chgBus(el){
+  var i=+el.dataset.i;
+  parts[i].bus=parseInt(el.value);
+  updateBusHint(); saveData();
+}
+
+function addRow(){
+  parts.push({name:'',loc:'',count:1,bus:0,_n:parts.length+1});
+  syncLocsFromParts();
+  renderEntryList(); renderLocMgr(); renderTimeByBus(); updateBusHint(); saveData();
+  // 滚动到新行
+  setTimeout(function(){ window.scrollTo(0,document.body.scrollHeight); }, 50);
+}
+
+function delRow(i){ parts.splice(i,1); renderEntryList(); updateBusHint(); saveData(); }
+function moveUp(i){ if(i<=0)return; var t=parts[i];parts[i]=parts[i-1];parts[i-1]=t; renderEntryList(); saveData(); }
+function moveDn(i){ if(i>=parts.length-1)return; var t=parts[i];parts[i]=parts[i+1];parts[i+1]=t; renderEntryList(); saveData(); }
+function clearParts(){ if(!confirm('清空名单？'))return; parts=[]; locs=[]; renderEntryList(); renderLocMgr(); renderTimeByBus(); updateBusHint(); saveData(); }
+
+function loadExample(){
+  parts=EXAMPLE.map(function(x){ return {name:x[0],loc:x[1],count:x[2],bus:0,_n:0}; });
+  var n2=1; parts.forEach(function(p){ p._n=n2; n2+=p.count||1; });
+  locs=Object.keys(EX_TIMES).map(function(n){ return {name:n,times:EX_TIMES[n]}; });
+  locs.forEach(function(loc){ for(var b=1;b<=busCount;b++){ if(!loc.times[b]) loc.times[b]=loc.times[1]||''; }});
+  renderEntryList(); renderLocMgr(); renderTimeByBus(); updateBusHint(); saveData();
+}
+
+function parseBulk(){
+  var lines=$('bulk').value.split('\n');
+  lines.forEach(function(line){
+    line=line.trim(); if(!line) return;
+    var t=line.split(/[,，|\t]/).map(function(s){return s.trim();}).filter(function(s){return s;});
+    if(!t.length) return;
+    var name=t[0], loc=(t[1]||''), count=1;
+    if(t.length>=3){
+      var n=parseInt(t[2]);
+      if(!isNaN(n)) count=n;
+      else loc=(t[1]||'')+' '+(t[2]||'');
+    }
+    parts.push({name:name,loc:loc,count:Math.max(1,count),bus:0,_n:0});
+  });
+  var n2=1; parts.forEach(function(p){ p._n=n2; n2+=p.count||1; });
+  $('bulk').value='';
+  syncLocsFromParts();
+  renderEntryList(); renderLocMgr(); renderTimeByBus(); updateBusHint(); saveData();
+}
+
+function updateBusHint(){
+  var total=parts.reduce(function(s,p){return s+(p.count||1);},0);
+  $('counter').textContent='共 '+total+' 人 / '+parts.length+' 队';
+  if(busCount>1){
+    var per=Math.ceil(total/busCount);
+    $('busHint').style.display='inline-block';
+    $('busHint').textContent='自动:'+per+'/车';
+    $('perBus').textContent=per;
+    $('busBar').style.display='flex';
+  } else {
+    $('busHint').style.display='none';
+    $('busBar').style.display='none';
+  }
+}
+
+// ==============================
+//  上车点管理
+// ==============================
+function renderLocMgr(){
+  $('locCount2').textContent=locs.length;
+  var box=$('locMgr'); box.innerHTML='';
+  if(locs.length===0){
+    box.innerHTML='<p class=&quot;hint&quot; style=&quot;padding:12px 0;text-align:center&quot;>暂无上车点，名单里有上车点后会自动出现</p>';
+    return;
+  }
+  locs.forEach(function(loc,i){
+    var div=document.createElement('div');
+    div.className='loc-item';
+
+    // 顶部：名称 + 操作
+    var top=document.createElement('div');
+    top.className='loc-item-top';
+    var nm=document.createElement('span'); nm.className='loc-name'; nm.textContent=loc.name;
+    top.appendChild(nm);
+
+    // 时间输入（单/多车）
+    var timesDiv=document.createElement('div'); timesDiv.className='loc-times';
+    if(busCount===1){
+      var inp=mkInput('text','ssm',loc.times[1]||'',function(){
+        loc.times[1]=this.value; renderTimeByBus(); saveData();
+      });
+      timesDiv.appendChild(inp);
+      var sp=document.createElement('span'); sp.textContent='发车'; timesDiv.appendChild(sp);
+    } else {
+      var lbl=document.createElement('span'); lbl.className='hint'; lbl.textContent='各车:'; timesDiv.appendChild(lbl);
+      for(var b=1;b<=busCount;b++){
+        var clr=getBusColor(b);
+        var sp2=document.createElement('span'); sp2.style.color=clr; sp2.style.fontSize='12px'; sp2.textContent=b+'车'; timesDiv.appendChild(sp2);
+        var inp2=mkInput('text','ssm',loc.times[b]||'',function(b2){
+          return function(){ loc.times[b2]=this.value; renderTimeByBus(); saveData(); };
+        }(b));
+        timesDiv.appendChild(inp2);
+      }
+    }
+    top.appendChild(timesDiv);
+
+    // 按钮
+    var acts=document.createElement('div'); acts.className='loc-actions';
+    var btnR=mkBtn('small blue','改名',function(i2){ return function(){ editLocName(i2); }; }(i));
+    var btnD=mkBtn('small red','删',function(i2){ return function(){ delLoc(i2); }; }(i));
+    acts.appendChild(btnR); acts.appendChild(btnD);
+    top.appendChild(acts);
+    div.appendChild(top);
+    box.appendChild(div);
+  });
+}
+
+function mkInput(type, cls, val, onchange){
+  var i=document.createElement('input');
+  i.type=type; i.className=cls; i.value=val||'';
+  i.onchange=onchange;
+  return i;
+}
+function mkBtn(cls, text, onclick){
+  var b=document.createElement('button');
+  b.className=cls; b.textContent=text; b.onclick=onclick;
+  return b;
+}
+
+function editLocName(i){
+  var old=locs[i].name, nv=prompt('修改上车点名称（将同步更新名单里所有人的上车点）:',old);
+  if(!nv||nv.trim()===old||!nv.trim()) return;
+  nv=nv.trim();
+  parts.forEach(function(p){ if(p.loc===old) p.loc=nv; });
+  locs[i].name=nv;
+  renderEntryList(); renderLocMgr(); renderTimeByBus(); saveData();
+}
+
+function addLoc(){
+  var nv=prompt('添加新上车点名称（如：游泳馆、易园西门）:','');
+  if(!nv||!nv.trim()) return;
+  nv=nv.trim();
+  if(locs.some(function(l){return l.name===nv;})){
+    alert('此上车点已存在'); return;
+  }
+  var newLoc={name:nv,times:{}};
+  for(var b=1;b<=busCount;b++) newLoc.times[b]=suggestTime(locs.length*2+(b-1)*5);
+  locs.push(newLoc);
+  renderLocMgr(); renderTimeByBus(); saveData();
+}
+
+function delLoc(i){
+  var name=locs[i].name;
+  if(!confirm('删除上车点「'+name+'」？\n（名单里该上车点的人不受影响，时间表不再出现）')) return;
+  locs.splice(i,1);
+  renderLocMgr(); renderTimeByBus(); saveData();
+}
+
+function clearUnusedLocs(){
+  var used={};
+  parts.forEach(function(p){ used[p.loc||'(未填上车点)']=true; });
+  var before=locs.length;
+  locs=locs.filter(function(l){ return used[l.name]; });
+  if(locs.length===before){ alert('没有未分配的上车点需要清理'); return; }
+  alert('已清理 '+(before-locs.length)+' 个未分配上车点');
+  renderLocMgr(); renderTimeByBus(); saveData();
+}
+
+// ==============================
+//  上车时间表
+// ==============================
+function renderTimeByBus(){
+  var box=$('timeByBus'); box.innerHTML='';
+  if(locs.length===0){
+    box.innerHTML='<p class=&quot;hint&quot;>暂无上车点</p>';
+    return;
+  }
+  for(var b=1;b<=busCount;b++){
+    var section=document.createElement('div');
+    if(busCount>1){
+      var h3=document.createElement('h4');
+      h3.style.color=getBusColor(b); h3.style.margin='0 0 8px'; h3.textContent='🚐 '+b+'号车 上车时间';
+      section.appendChild(h3);
+    } else {
+      var h3b=document.createElement('h4'); h3b.style.margin='0 0 8px'; h3b.textContent='所有车辆 统一发车时间';
+      section.appendChild(h3b);
+    }
+    locs.forEach(function(loc,i){
+      var row=document.createElement('div');
+      row.className='loc-item-top';
+      var nm=document.createElement('span'); nm.className='loc-name'; nm.textContent=loc.name;
+      row.appendChild(nm);
+      var inp=mkInput('text','ssm',loc.times[b]||'',function(i2,b2){ return function(){ locs[i2].times[b2]=this.value; saveData(); }; }(i,b));
+      row.appendChild(inp);
+      section.appendChild(row);
+    });
+    box.appendChild(section);
+  }
+}
+
+// ==============================
+//  生成文案
+// ==============================
+function generate(){
+  var f=function(id){ return $(id).value; };
+  var date=f('f_date'), route=f('f_route'), up=f('f_up'), km=f('f_km'),
+      fee=f('f_fee'), limit=f('f_limit'), phone=f('f_phone'),
+      disclaim=f('f_disclaim'), tips=f('f_tips');
+
+  var total=parts.reduce(function(s,p){return s+(p.count||1);},0);
+  if(total===0){ alert('名单为空，请先添加人员'); return; }
+
+  // 编号
+  var n2=1; parts.forEach(function(p){ p._n=n2; n2+=p.count||1; });
+
+  // 自动分车
+  var ab=1;
+  parts.forEach(function(p){
+    if(p.bus===0){ p._bus=ab; ab++; if(ab>busCount) ab=1; }
+    else p._bus=p.bus;
+  });
+
+  // 报名名单
+  var reg='';
+  parts.forEach(function(p,i){
+    var c=p.count||1;
+    reg+=(i+1)+(c>1?p.name+c+'人（'+p.loc+'）':p.name+'（'+p.loc+'）')+'\n';
+  });
+
+  // 上车时间表
+  function buildSched(bus){
+    var byLoc={};
+    parts.filter(function(p){return p._bus===bus;}).forEach(function(p){
+      var key=p.loc||'(未填上车点)';
+      if(!byLoc[key]) byLoc[key]=[];
+      byLoc[key].push(p);
+    });
+    var rows=Object.keys(byLoc).map(function(loc){
+      var locObj=locs.find(function(l){return l.name===loc;});
+      return {loc:loc, time:locObj?locObj.times[bus]||'':'',
+              list:byLoc[loc]};
+    });
+    rows.sort(function(a,b){
+      if(!a.time&&!b.time) return 0;
+      if(!a.time) return 1; if(!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+    var sub=rows.reduce(function(s,r){return s+r.list.reduce(function(a,p){return a+(p.count||1);},0);},0);
+    var out='';
+    rows.forEach(function(r){
+      var names=r.list.map(function(p){var c=p.count||1;return(c>1?p.name+c+'人':p.name);}).join('，');
+      out+=(r.time||'?')+r.loc+'：'+names+'\n';
+    });
+    return {out:out,sub:sub};
+  }
+
+  // 座次表
+  function buildSeat(bus){
+    var bp=parts.filter(function(p){return p._bus===bus;});
+    var seat='',no=1;
+    bp.forEach(function(p){
+      var c=p.count||1;
+      if(c>1) seat+=no+'-'+(no+c-1)+p.name+c+'人，';
+      else seat+=no+p.name+'，';
+      no+=c;
+    });
+    return seat.replace(/，$/,'');
+  }
+
+  var car1v=f('bus1_car'), driver1v=f('bus1_driver');
+  var regPost=date+'出行'+route+'\n'+up+'，'+km+'，'+fee+'\n\n'+disclaim+'\n\n报名电话'+phone+'\n\n限报'+limit+'人\n\n报名进行中…… '+date+'出行'+route;
+  if(busCount===1){
+    if(car1v) regPost+=`，车号${car1v}`;
+    if(driver1v) regPost+=`，司机电话${driver1v}`;
+    regPost+=`，带车电话${phone}`;
+  } else {
+    regPost+='（共'+busCount+'辆）';
+    for(var b=1;b<=busCount;b++){
+      var cv=f('bus'+b+'_car'), dv=f('bus'+b+'_driver');
+      if(cv||dv) regPost+='\n'+b+'号车'+(cv?', 车号'+cv:'')+(dv?', 司机电话'+dv:'');
+    }
+    regPost+='\n带车电话'+phone;
+  }
+
+  var goPost=date+'出行'+route+'\n';
+  if(busCount===1){
+    goPost+=(car1v?'车号'+car1v:'')+(driver1v?(car1v?', ':'')+'司机电话'+driver1v:'')+'带车电话'+phone;
+    goPost=goPost.replace(/^([^车])([^电])/,'$1，$2').replace(/，带车/,'，带车');
+  } else {
+    goPost+='共'+busCount+'辆车';
+    for(var b2=1;b2<=busCount;b2++){
+      var cv2=f('bus'+b2+'_car'), dv2=f('bus'+b2+'_driver');
+      goPost+='\n'+b2+'号车'+(cv2?'车号'+cv2:'')+(dv2?(cv2?', ':'')+'司机'+dv2:'');
+    }
+    goPost+='\n带车电话'+phone;
+  }
+  goPost=goPost.replace(/，\n/g,'\n').replace(/\n{3,}/g,'\n\n');
+
+  goPost+='\n\n🌹🌹🌹@所有人\n';
+
+  if(busCount===1){
+    var s=buildSched(1);
+    goPost+=s.out+'\n共计'+s.sub+'人\n';
+  } else {
+    for(var b3=1;b3<=busCount;b3++){
+      var s3=buildSched(b3);
+      var cv3=f('bus'+b3+'_car');
+      goPost+='\n━━━ '+b3+'号车'+(cv3?'（'+cv3+'）':'')+' 上车时间 ━━━\n'+s3.out+'（'+s3.sub+'人）\n';
+    }
+    goPost+='共计'+total+'人\n';
+  }
+
+  goPost+='\n'+tips+'\n\n座次有人性化微调，排表如下：\n\n';
+  if(busCount===1) goPost+=buildSeat(1)+'\n';
+  else {
+    for(var b4=1;b4<=busCount;b4++){
+      var cv4=f('bus'+b4+'_car');
+      goPost+='━━━ '+b4+'号车'+(cv4?'（'+cv4+'）':'')+' ━━━\n'+buildSeat(b4)+'\n\n';
+    }
+  }
+  goPost+='出行愉快！';
+
+  var seatOut='';
+  if(busCount===1) seatOut=buildSeat(1);
+  else {
+    for(var b5=1;b5<=busCount;b5++){
+      var cv5=f('bus'+b5+'_car');
+      seatOut+='━━━ '+b5+'号车'+(cv5?'（'+cv5+'）':'')+' ━━━\n'+buildSeat(b5)+'\n';
+    }
+  }
+
+  $('out_reg').value=regPost+'\n\n========== 报名名单 ==========\n'+reg;
+  $('out_go').value=goPost;
+  $('out_seat').value=seatOut.trim();
+  showTab('out');
+}
+
+// ==============================
+//  复制
+// ==============================
+function copy(id){
+  var txt=$(id).value;
+  if(!txt){ alert('请先生成文案'); return; }
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ showBar('已复制 ✓', 'ok'); });
+  else { var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');showBar('已复制 ✓','ok');}catch(e){alert('复制失败，请手动选择');}
+    document.body.removeChild(ta); }
+}
+function copyAll(){
+  var t=$('out_reg').value+'\n\n==========\n\n'+$('out_go').value;
+  if(!t.trim()){ alert('请先生成文案'); return; }
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ showBar('已复制全部 ✓', 'ok'); });
+  else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');showBar('已复制全部 ✓','ok');}catch(e){alert('复制失败，请手动选择');}
+    document.body.removeChild(ta); }
+}
+
+// ==============================
+//  初始化
+// ==============================
+(function(){
+  loadData();
+  syncLocsFromParts();
+  renderEntryList();
+  renderLocMgr();
+  renderTimeByBus();
+  updateBusHint();
+  // 自动保存：所有输入框
+  var allInputs=document.querySelectorAll('input,textarea,select');
+  allInputs.forEach(function(el){
+    el.addEventListener('change',saveData);
+  });
+  // 实时保存（延迟，避免频繁）
+  var saveTimer=null;
+  allInputs.forEach(function(el){
+    el.addEventListener('input',function(){
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(saveData,800);
+    });
+  });
+  // 关闭/刷新页面时立即保存，避免最后一次输入丢失
+  window.addEventListener('beforeunload', saveData);
+  window.addEventListener('pagehide', saveData);
+  // 页面可见性变化时保存（手机切后台/返回）
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') saveData();
+  });
+})();
+</script>
+</body>
+</html>
